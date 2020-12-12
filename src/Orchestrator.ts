@@ -42,7 +42,10 @@ import {
     UnsupportedGrantTypeError,
 } from "./errors";
 
+const PASSWORD_GRANT_TYPE = "password";
+const REFRESH_GRANT_TYPE = "refresh_token";
 const SUPERUSER_SCOPE = process.env.SUPERUSER_SCOPE; // null means no such scope
+const TOKEN_TYPE = "Bearer";
 
 // Public Classes ============================================================
 
@@ -130,8 +133,37 @@ export class Orchestrator {
      *
      * @returns Promise<TokenResponse>  Response containing resulting tokens
      */
+    async token(request: TokenRequest): Promise<TokenResponse> {
+        let response: TokenResponse;
+        switch (request.grant_type) {
+            case PASSWORD_GRANT_TYPE:
+                response = await this.password(request as PasswordTokenRequest);
+                break;
+            case REFRESH_GRANT_TYPE:
+                response = await this.refresh(request as RefreshTokenRequest);
+                break;
+            default:
+                throw new UnsupportedGrantTypeError
+                    (`grant_type: '${request.grant_type}' is not supported`);
+        }
+        return response;
+    }
 
     // Private Methods -------------------------------------------------------
+
+    /**
+     * Calculate and return a token expires Date, based on the current Date
+     * and an offset (in seconds).
+     *
+     * @param offset            Offset (in seconds) from now
+     */
+    private calculateExpires(offset: number): Date {
+        let expiresMilliseconds: number =
+            Date.now() + (offset * 1000);
+        let now: Date = new Date();
+        now.setTime(expiresMilliseconds);
+        return now;
+    }
 
     /**
      * Is the required scope within the bounds of the allowed scope?
@@ -171,6 +203,80 @@ export class Orchestrator {
             }
         });
         return result;
+    }
+
+    /**
+     * Process a request for an access token (and refresh token, if that
+     * option is configured), given the specified password request parameters.
+     *
+     * @param request: PasswordTokenRequest Request for token to be processed
+     *
+     * @returns Promise<TokenResponse>      Response containing resulting tokens
+     */
+    private async password(request: PasswordTokenRequest): Promise<TokenResponse> {
+        try {
+
+            // Validate requesting user
+            const user: User = await this.handlers.authenticateUser
+                (request.username, request.password);
+
+            // Validate requested scope (if any)
+            let grantedScope: string;
+            if (request.scope) {
+                if (!this.includedScope(request.scope, user.scope)) {
+                    throw new InvalidScopeError
+                        (`scope: Scope '${request.scope}' not allowed`);
+                } else {
+                    grantedScope = request.scope;
+                }
+            } else {
+                grantedScope = user.scope;
+            }
+
+            // Generate the requested access token
+            let expires: Date = this.calculateExpires(this.accessTokenLifetime);
+            const accessToken: AccessToken = await this.handlers.createAccessToken
+                (expires, grantedScope, user.userId);
+
+            // Generate the requested refresh token (if any)
+            let refreshToken: RefreshToken | null;
+            if (this.issueRefreshToken) {
+                let expires = this.calculateExpires(this.refreshTokenLifetime);
+                refreshToken = await this.handlers.createRefreshToken
+                    (accessToken.token, expires, user.userId);
+            }
+
+            // Compose and return the results
+            const response: TokenResponse = {
+                access_token: accessToken.token,
+                expires_in: this.accessTokenLifetime,
+                // @ts-ignore
+                refresh_token: refreshToken ? refreshToken.token : undefined,
+                scope: grantedScope,
+                token_type: TOKEN_TYPE,
+            }
+            return response;
+
+        } catch (error) {
+            if (error instanceof OAuthError) {
+                throw error;
+            } else {
+                throw new ServerError(error, "Orchestrator.password()");
+            }
+        }
+
+    }
+
+    /**
+     * Process a request for an access token (and refresh token, if that
+     * option is configured), given the specified refresh request parameters.
+     *
+     * @param request: RefreshTokenRequest  Request for token to be processed
+     *
+     * @returns Promise<TokenResponse>      Response containing resulting tokens
+     */
+    private async refresh(request: RefreshTokenRequest): Promise<TokenResponse> {
+        throw new Error("Not implemented yet");
     }
 
 }

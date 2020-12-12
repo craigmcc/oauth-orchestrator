@@ -23,7 +23,7 @@ export {
     TokenResponse,
     OrchestratorHandlers,
     OrchestratorOptions,
-//    AuthenticateUser,
+    AuthenticateUser,
     CreateAccessToken,
     CreateRefreshToken,
     RetrieveAccessToken,

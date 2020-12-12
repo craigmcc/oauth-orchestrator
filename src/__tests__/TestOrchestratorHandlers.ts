@@ -6,21 +6,38 @@
 
 import {
     AccessToken,
+    AuthenticateUser,
     CreateAccessToken,
-    CreateRefreshToken, Identifier,
+    CreateRefreshToken,
+    Identifier,
     OrchestratorHandlers,
-    PasswordTokenRequest,
     RefreshToken,
-    RefreshTokenRequest,
     RetrieveAccessToken,
     RetrieveRefreshToken,
     RevokeAccessToken,
-    TokenRequest,
-    TokenResponse,
     User
 } from "../types";
 
 // Private Objects ===========================================================
+
+const authenticateUser: AuthenticateUser
+    = async (username: string, password: string): Promise<User> =>
+{
+    const credential: Credential | undefined = credentialMap.get(username);
+    if (credential) {
+        if (password === credential.password) {
+            const user: User = {
+                scope: credential.scope,
+                userId: credential.userId
+            }
+            return user;
+        } else {
+            throw new Error(`credentials: Invalid credentials`);
+        }
+    } else {
+        throw new Error(`credentials: Invalid credentials`);
+    }
+}
 
 const createAccessToken: CreateAccessToken
     = async (expires: Date, scope: string, userId: Identifier): Promise<AccessToken> =>
@@ -32,7 +49,7 @@ const createAccessToken: CreateAccessToken
         userId: userId
     }
     accessTokenMap.set(accessToken.token, accessToken);
-    return Promise.resolve(accessToken);
+    return accessToken;
 }
 
 const createRefreshToken: CreateRefreshToken
@@ -45,7 +62,7 @@ const createRefreshToken: CreateRefreshToken
         userId: userId
     }
     refreshTokenMap.set(refreshToken.token, refreshToken);
-    return Promise.resolve(refreshToken);
+    return refreshToken;
 }
 
 const retrieveAccessToken: RetrieveAccessToken
@@ -53,14 +70,14 @@ const retrieveAccessToken: RetrieveAccessToken
 {
     // Dummy to force error handling
     if ("oops" === token) {
-        return Promise.reject(new Error("retrieveAccessToken: oops"));
+        throw new Error("retrieveAccessToken: oops");
     }
     // Normal lookup
     const accessToken: AccessToken | undefined = accessTokenMap.get(token);
     if (accessToken) {
-        return Promise.resolve(accessToken);
+        return accessToken;
     } else {
-        return Promise.reject(new Error(`retrieveAccessToken: Missing token ${token}`));
+        throw new Error(`retrieveAccessToken: Missing token ${token}`);
     }
 }
 
@@ -69,14 +86,14 @@ const retrieveRefreshToken: RetrieveRefreshToken
 {
     // Dummy to force error handling
     if ("oops" === token) {
-        return Promise.reject(new Error("retrieveRefreshToken: oops"));
+        throw new Error("retrieveRefreshToken: oops");
     }
     // Normal lookup
     const refreshToken: RefreshToken | undefined = refreshTokenMap.get(token);
     if (refreshToken) {
-        return Promise.resolve(refreshToken);
+        return refreshToken;
     } else {
-        return Promise.reject(new Error(`retrieveRefreshToken: Missing token ${token}`));
+        throw new Error(`retrieveRefreshToken: Missing token ${token}`);
     }
 }
 
@@ -93,18 +110,20 @@ const revokeAccessToken: RevokeAccessToken
                 refreshTokenMap.delete(refreshToken.token);
             }
         });
-        return Promise.resolve();
+        return;
     } else {
-        return Promise.reject(new Error(`revokeAccessToken: Missing token ${token}`));
+        throw new Error(`revokeAccessToken: Missing token ${token}`);
     }
 }
 
 // Public Objects ============================================================
 
 export const TestOrchestratorHandlers: OrchestratorHandlers = {
+    authenticateUser: authenticateUser,
     createAccessToken: createAccessToken,
     createRefreshToken: createRefreshToken,
     retrieveAccessToken: retrieveAccessToken,
+    retrieveRefreshToken: retrieveRefreshToken,
     revokeAccessToken: revokeAccessToken,
 }
 

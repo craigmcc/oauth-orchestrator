@@ -88,13 +88,15 @@ export interface TokenResponse {
 // Implementations must provide the following object, populated with the
 // functions that implement each required signature.
 export interface OrchestratorHandlers {
+    authenticateUser:           AuthenticateUser;
     createAccessToken:          CreateAccessToken;
     createRefreshToken:         CreateRefreshToken;
     retrieveAccessToken:        RetrieveAccessToken;
+    retrieveRefreshToken:       RetrieveRefreshToken;
     revokeAccessToken:          RevokeAccessToken;
 }
 
-// Implementations may provide the following objects, with optional overrides
+// Implementations may provide the following object, with optional overrides
 // for various configuration properties.  Default values are listed in
 // square brackets.
 export interface OrchestratorOptions {
@@ -105,6 +107,15 @@ export interface OrchestratorOptions {
 }
 
 // Implementation Provided Handlers ==========================================
+
+/**
+ * Validate the specified user credentials, and return a corresponding User
+ * object, or throw an Error if the user could not be validated (wrong
+ * credentials, no such user, or other failure cause).
+ */
+export type AuthenticateUser
+    = (username: string, password: string)
+    => Promise<User>;
 
 /**
  * Return a promise to create, save, and return a new access token,
@@ -131,7 +142,9 @@ export type CreateRefreshToken
  *
  * @param token             Access token value to be retrieved
  */
-export type RetrieveAccessToken = (token: string) => Promise<AccessToken>;
+export type RetrieveAccessToken
+    = (token: string)
+    => Promise<AccessToken>;
 
 /**
  * Return a promise for the requested refresh token (if it exists),
@@ -140,11 +153,15 @@ export type RetrieveAccessToken = (token: string) => Promise<AccessToken>;
  *
  * @param token             Refresh token value to be retrieved
  */
-export type RetrieveRefreshToken = (token: string) => Promise<RefreshToken>;
+export type RetrieveRefreshToken
+    = (token: string)
+    => Promise<RefreshToken>;
 
 /**
  * Revoke the requested access token (it it exists), as well as any
  * related refresh tokens.  Otherwise, throw an error.
  */
-export type RevokeAccessToken = (token: string) => Promise<void>;
+export type RevokeAccessToken
+    = (token: string)
+    => Promise<void>;
 
