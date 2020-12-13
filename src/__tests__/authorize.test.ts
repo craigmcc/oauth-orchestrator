@@ -57,7 +57,7 @@ describe("Orchestrator.authorize()", () => {
             expect.fail(`Should have rejected invalid token ${TOKEN}`);
         } catch (error) {
             // Expected result
-            expect(error.message).equals(`retrieveAccessToken: Missing token ${TOKEN}`);
+            expect(error.message).equals(`token: Invalid access token`);
         }
     })
 

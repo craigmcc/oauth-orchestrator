@@ -34,7 +34,6 @@ import {
 } from "./types";
 import {
     InvalidGrantError,
-    InvalidRequestError,
     InvalidScopeError,
     InvalidTokenError,
     OAuthError,
@@ -87,26 +86,47 @@ export class Orchestrator {
      * @param token         Access token value to be authorized
      * @param required      Required scope needed by the application
      *
-     * @throws InvalidScopeError Access token does not satisfy scope
-     * @throws InvalidTokenError Access token does not exist,
-     *                           or it has expired
+     * @throws Any error discovered through orchestration, or returned
+     *         by a handler
      */
     async authorize(token: string, required: string): Promise<void> {
+
         let accessToken: AccessToken;
+
         try {
-            accessToken = await this.handlers.retrieveAccessToken(token);
+
+            // Look up the requested access token
+            try {
+                accessToken = await this.handlers.retrieveAccessToken(token);
+            } catch (error) {
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.authenticate.retrieveAccessToken()"
+                );
+            }
+
+            // Validate expiration and sufficient scope
             if ((new Date()) > accessToken.expires) {
-                await Promise.reject(new InvalidTokenError("token: Expired access token"));
+                throw new InvalidTokenError(
+                    "token: Expired access token",
+                    "Orchestrator.authenticate.checkExpiration()"
+                );
             }
             if (!this.includedScope(required, accessToken.scope)) {
-                await Promise.reject(new InvalidScopeError("scope: Required scope not authorized for this access token"));
+                throw new InvalidScopeError(
+                    "scope: Required scope not authorized for this access token",
+                    "Orchestrator.authenticate.checkScope()"
+                );
             }
-            await Promise.resolve();
+
         } catch (error) {
-            if (error instanceof Error) {
-                await Promise.reject(error);
+            if (error instanceof OAuthError) {
+                throw error;
             } else {
-                await Promise.reject(new InvalidTokenError("token: Missing access token"));
+                throw new ServerError(
+                    error,
+                    "Orchestrator.authorize()"
+                )
             }
         }
     }
@@ -116,12 +136,25 @@ export class Orchestrator {
      * related refresh tokens.  Otherwise, throw an appropriate exception
      *
      * @param token         Access token value to be revoked
+     *
+     * @throws Any error discovered through orchestration, or returned
+     *         by a handler
      */
     async revoke(token: string): Promise<void> {
+
         try {
+
             await this.handlers.revokeAccessToken(token);
+
         } catch (error) {
-            throw new InvalidTokenError(error, "Orchestrator.revoke()");
+            if (error instanceof OAuthError) {
+                throw error;
+            } else {
+                throw new InvalidTokenError(
+                    "token: Invalid access token",
+                    "Orchestrator.revoke()"
+                );
+            }
         }
     }
 
@@ -132,6 +165,9 @@ export class Orchestrator {
      * @param request: TokenRequest     Request for token to be processed
      *
      * @returns Promise<TokenResponse>  Response containing resulting tokens
+     *
+     * @throws Any error discovered through orchestration, or returned
+     *         by a handler
      */
     async token(request: TokenRequest): Promise<TokenResponse> {
         let response: TokenResponse;
@@ -143,8 +179,10 @@ export class Orchestrator {
                 response = await this.refresh(request as RefreshTokenRequest);
                 break;
             default:
-                throw new UnsupportedGrantTypeError
-                    (`grant_type: '${request.grant_type}' is not supported`);
+                throw new UnsupportedGrantTypeError(
+                    `grant_type: '${request.grant_type}' is not supported`,
+                    "Orchestrator.token()"
+                );
         }
         return response;
     }
@@ -214,18 +252,30 @@ export class Orchestrator {
      * @returns Promise<TokenResponse>      Response containing resulting tokens
      */
     private async password(request: PasswordTokenRequest): Promise<TokenResponse> {
+
+        let accessToken: AccessToken;
+        let refreshToken: RefreshToken;
+        let user: User;
+
         try {
 
             // Validate requesting user
-            const user: User = await this.handlers.authenticateUser
-                (request.username, request.password);
+            try {
+                user = await this.handlers.authenticateUser
+                    (request.username, request.password);
+            } catch (error) {
+                throw new InvalidGrantError(error,
+                    "Orchestrator.password.authenticateUser()"
+                );
+            }
 
             // Validate requested scope (if any)
             let grantedScope: string;
             if (request.scope) {
                 if (!this.includedScope(request.scope, user.scope)) {
-                    throw new InvalidScopeError
-                        (`scope: Scope '${request.scope}' not allowed`);
+                    throw new InvalidScopeError(
+                        `scope: Scope '${request.scope}' not allowed`,
+                        "Orchestrator.password.checkScope()");
                 } else {
                     grantedScope = request.scope;
                 }
@@ -234,16 +284,29 @@ export class Orchestrator {
             }
 
             // Generate the requested access token
-            let expires: Date = this.calculateExpires(this.accessTokenLifetime);
-            const accessToken: AccessToken = await this.handlers.createAccessToken
-                (expires, grantedScope, user.userId);
+            try {
+                let expires: Date = this.calculateExpires(this.accessTokenLifetime);
+                accessToken = await this.handlers.createAccessToken
+                   (expires, grantedScope, user.userId);
+            } catch (error) {
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.password.createAccessToken()"
+                );
+            }
 
             // Generate the requested refresh token (if any)
-            let refreshToken: RefreshToken | null;
             if (this.issueRefreshToken) {
-                let expires = this.calculateExpires(this.refreshTokenLifetime);
-                refreshToken = await this.handlers.createRefreshToken
-                    (accessToken.token, expires, user.userId);
+                try {
+                    let expires = this.calculateExpires(this.refreshTokenLifetime);
+                    refreshToken = await this.handlers.createRefreshToken
+                        (accessToken.token, expires, user.userId);
+                } catch (error) {
+                    throw new InvalidTokenError(
+                        error,
+                        "Orchestrator.password.createRefreshToken()"
+                    );
+                }
             }
 
             // Compose and return the results
@@ -276,7 +339,105 @@ export class Orchestrator {
      * @returns Promise<TokenResponse>      Response containing resulting tokens
      */
     private async refresh(request: RefreshTokenRequest): Promise<TokenResponse> {
-        throw new Error("Not implemented yet");
+
+        let newAccessToken: AccessToken;
+        let newRefreshToken: RefreshToken;
+        let oldAccessToken: AccessToken;
+        let oldRefreshToken: RefreshToken;
+
+        try {
+
+            // Look up the existing refresh token
+            try {
+                oldRefreshToken = await this.handlers.retrieveRefreshToken
+                    (request.refresh_token);
+            } catch (error) {
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.refresh.retrieveRefreshToken()"
+                );
+            }
+
+            // Verify that this token has not expired
+            if ((new Date()) > oldRefreshToken.expires) {
+                throw new InvalidTokenError(
+                    "token: Expired refresh token",
+                    "Orchestrator.refresh.checkExpiration()"
+                )
+            }
+
+            // Look up the corresponding access token
+            try {
+                oldAccessToken = await this.handlers.retrieveAccessToken
+                    (oldRefreshToken.accessToken);
+            } catch (error) {
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.refresh.retrieveAccessToken()"
+                )
+            }
+            // We do not care if the access token has expired (since we
+            // are going to create a new one), but we do care that it exists
+            // so that we can forward the scope and userId information
+
+            // Generate a new access token
+            try {
+                let expires: Date =
+                    this.calculateExpires(this.accessTokenLifetime);
+                newAccessToken = await this.handlers.createAccessToken
+                        (expires, oldAccessToken.scope, oldAccessToken.userId);
+            } catch (error) {
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.refresh.createAccessToken()"
+                );
+            }
+
+            // If configured, generate a new refresh token
+            if (this.issueRefreshToken) {
+                try {
+                    let expires: Date
+                        = this.calculateExpires(this.refreshTokenLifetime);
+                    newRefreshToken = await this.handlers.createRefreshToken
+                        (newAccessToken.token, expires, oldAccessToken.userId);
+                } catch (error) {
+                    throw new InvalidTokenError(
+                        error,
+                        "Orchestrator.refresh.createRefreshToken()"
+                    );
+                }
+            }
+
+            // Revoke the old access token (and any associated refresh tokens)
+            try {
+                await this.handlers.revokeAccessToken(oldAccessToken.token);
+            } catch (error) {
+                // TODO - Should we throw, or just note it and return the new stuff?
+                throw new InvalidTokenError(
+                    error,
+                    "Orchestrator.refresh.revokeAccessToken()"
+                );
+            }
+
+            // Compose and return the response
+            const response: TokenResponse = {
+                access_token: newAccessToken.token,
+                expires_in: this.accessTokenLifetime,
+                // @ts-ignore
+                refresh_token: newRefreshToken ? newRefreshToken.token : undefined,
+                scope: newAccessToken.scope,
+                token_type: TOKEN_TYPE,
+            }
+            return response;
+
+        } catch (error) {
+            if (error instanceof OAuthError) {
+                throw error;
+            } else {
+                throw new ServerError(error, "Orchestrator.refresh()");
+            }
+        }
+
     }
 
 }

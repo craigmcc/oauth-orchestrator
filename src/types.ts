@@ -1,8 +1,6 @@
 // types =====================================================================
 
-// Typescript type definitions that integrating servers must be aware of.
-
-// TODO - do these just end up in a .d.ts file?
+// Typescript type definitions that integrating applications must be aware of.
 
 // Data Model Types ==========================================================
 
@@ -33,7 +31,9 @@ export interface RefreshToken {
 }
 
 /**
- * An authorized user and associated scope assigned to that person.
+ * An authorized user and associated scope assigned to that person.  Note that
+ * details of how users are identified and stored is outside the scope of the
+ * Orchestrator.  Only the details it requires are described here.
  */
 export interface User {
     scope: string;              // Space-separated scopes granted to this user.
@@ -85,8 +85,12 @@ export interface TokenResponse {
 
 // Orchestrator Configuration Objects ========================================
 
-// Implementations must provide the following object, populated with the
-// functions that implement each required signature.
+/**
+ * Applications integrating the Orchestrator MUST provide an instance
+ * implementing this interface, to define the application-specific
+ * handler functions that will be utilized by the Orchestrator.
+ */
+
 export interface OrchestratorHandlers {
     authenticateUser:           AuthenticateUser;
     createAccessToken:          CreateAccessToken;
@@ -96,9 +100,12 @@ export interface OrchestratorHandlers {
     revokeAccessToken:          RevokeAccessToken;
 }
 
-// Implementations may provide the following object, with optional overrides
-// for various configuration properties.  Default values are listed in
-// square brackets.
+/**
+ * Applications integrating the Orchestrator MAY provide an instance
+ * implementing this interface, to define overrides for configuration
+ * values that affect operation of the Orchestrator.  Default values
+ * are listed in square brackets in the comments.
+ */
 export interface OrchestratorOptions {
     accessTokenLifetime?: number;       // In seconds [86400, one day]
     issueRefreshToken?: boolean;        // Issue refresh token with
@@ -121,6 +128,13 @@ export type AuthenticateUser
  * Return a promise to create, save, and return a new access token,
  * or throw an Error if the token could not be saved.  The returned
  * "token" field must be unique.
+ *
+ * @param expires           JavaScript Date representing the
+ *                          date/time this token will expire
+ * @param userId            User identifier this token will
+ *                          be owned by
+ * @param scope             Space-delimited string of scope(s)
+ *                          granted to this token
  */
 export type CreateAccessToken
     = (expires: Date, scope: string, userId: Identifier)
@@ -130,6 +144,12 @@ export type CreateAccessToken
  * Return a promise to create, save, and return a new refresh token,
  * or throw an Error if the token could not be saved.  The returned
  * "token" field must be unique.
+ *
+ * @param accessToken       Access token value this refresh token
+ *                          will be associated with
+ * @param expires           JavaScript Date representing the
+ *                          date/time this token will expire
+ * @param userId            User identifier this will be owned by
  */
 export type CreateRefreshToken
     = (accessToken: string, expires: Date, userId: Identifier)
@@ -160,6 +180,8 @@ export type RetrieveRefreshToken
 /**
  * Revoke the requested access token (it it exists), as well as any
  * related refresh tokens.  Otherwise, throw an error.
+ *
+ * @param token             Access token value to be revoked
  */
 export type RevokeAccessToken
     = (token: string)

@@ -77,7 +77,7 @@ const retrieveAccessToken: RetrieveAccessToken
     if (accessToken) {
         return accessToken;
     } else {
-        throw new Error(`retrieveAccessToken: Missing token ${token}`);
+        throw new Error(`token: Invalid access token`);
     }
 }
 
@@ -93,7 +93,7 @@ const retrieveRefreshToken: RetrieveRefreshToken
     if (refreshToken) {
         return refreshToken;
     } else {
-        throw new Error(`retrieveRefreshToken: Missing token ${token}`);
+        throw new Error(`token: Invalid refresh token`);
     }
 }
 

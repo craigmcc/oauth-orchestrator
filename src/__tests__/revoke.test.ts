@@ -40,7 +40,7 @@ describe("Orchestrator.revoke()", () => {
             expect.fail("Should have rejected invalid access token");
         } catch (error) {
             // Expected result
-            expect(error.message).equals(`revokeAccessToken: Missing token ${TOKEN}`);
+            expect(error.message).equals(`token: Invalid access token`);
         }
     })
 

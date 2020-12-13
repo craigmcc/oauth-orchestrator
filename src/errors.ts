@@ -17,16 +17,18 @@ export type Source = string | Error;
  */
 export abstract class OAuthError extends Error {
 
-    constructor(source: Source, context?: string, status?: number) {
+    constructor(source: Source, context?: string) {
         super(source instanceof Error ? source.message : source);
         this.inner = source instanceof Error ? source : undefined;
-        this.name = "oauth_error";
-        this.status = status ? status : 500;
+        this.error = "oauth_error";
+        this.error_description = (source instanceof Error) ? source.message : source;
+        this.status = 500;
     }
 
     context: string | undefined;
     inner: Error | undefined;
-    name: string;
+    error: string;
+    error_description: string;
     status: number;
 
 }
@@ -39,9 +41,10 @@ export abstract class OAuthError extends Error {
  */
 export class InvalidGrantError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 401); // TODO - some impls say 400?
+        super(source, context);
     }
-    name = "invalid_grant";
+    error = "invalid_grant";
+    status = 401; // TODO - some implementations say 400?
 }
 
 /**
@@ -49,9 +52,11 @@ export class InvalidGrantError extends OAuthError {
  */
 export class InvalidRequestError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 400);
+        super(source, context);
     }
-    name = "invalid_request";
+
+    error = "invalid_request";
+    status = 400;
 }
 
 /**
@@ -60,9 +65,10 @@ export class InvalidRequestError extends OAuthError {
  */
 export class InvalidScopeError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 400);
+        super(source, context);
     }
-    name = "invalid_scope";
+    error = "invalid_scope";
+    status = 403;
 }
 
 /**
@@ -70,9 +76,10 @@ export class InvalidScopeError extends OAuthError {
  */
 export class InvalidTokenError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 401);
+        super(source, context);
     }
-    name = "invalid_token";
+    error = "invalid_token";
+    status = 401;
 }
 
 /**
@@ -81,9 +88,10 @@ export class InvalidTokenError extends OAuthError {
  */
 export class ServerError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 500);
+        super(source, context);
     }
-    name = "server_error";
+    error = "server_error";
+    status = 500;
 }
 
 /**
@@ -91,8 +99,9 @@ export class ServerError extends OAuthError {
  */
 export class UnsupportedGrantTypeError extends OAuthError {
     constructor(source: Source, context?: string) {
-        super(source, context, 400);
+        super(source, context);
     }
-    name = "unsupported_grant_type";
+    error = "unsupported_grant_type";
+    status = 400;
 }
 
