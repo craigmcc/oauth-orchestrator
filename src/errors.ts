@@ -11,17 +11,17 @@ export type Source = string | Error;
  * Abstract base class for all errors used in this library.  Developers should
  * utilize the specific error subclasses for each specific use case.
  *
- * @param source                A string message or an Error to be wrapped
- * @param context               Additional context for this error
- * @param status                HTTP status code (if this error is returned)
+ * @param source                String message or an Error to be wrapped
+ * @param context               (Optional) Additional context for this error
  */
 export abstract class OAuthError extends Error {
 
     constructor(source: Source, context?: string) {
         super(source instanceof Error ? source.message : source);
-        this.inner = source instanceof Error ? source : undefined;
+        this.context = context ? context : undefined;
         this.error = "oauth_error";
         this.error_description = (source instanceof Error) ? source.message : source;
+        this.inner = source instanceof Error ? source : undefined;
         this.status = 500;
     }
 
