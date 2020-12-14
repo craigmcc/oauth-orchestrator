@@ -85,6 +85,7 @@ export class Orchestrator {
      *
      * @param token         Access token value to be authorized
      * @param required      Required scope needed by the application
+     *                      (if "", any scope is allowed)
      *
      * @throws Any error discovered through orchestration, or returned
      *         by a handler
@@ -205,6 +206,7 @@ export class Orchestrator {
 
     /**
      * Is the required scope within the bounds of the allowed scope?
+     * If required scope is "", always returns true.
      *
      * @param required              Scope to be tested
      * @param allowed               Scope allowed by this token
@@ -215,6 +217,10 @@ export class Orchestrator {
     ) : boolean {
         // Handle superuser token (if any is configured) specially
         if (SUPERUSER_SCOPE && (allowed.includes(SUPERUSER_SCOPE))) {
+            return true;
+        }
+        // Handle "" required scope as meaning it is ok
+        if ("" === required) {
             return true;
         }
         // Otherwise, check for allowed
