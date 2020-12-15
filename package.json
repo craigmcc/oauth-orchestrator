@@ -1,5 +1,5 @@
 {
-  "name": "@craigmcc/basic-oauth-orchestration",
+  "name": "@craigmcc/oauth-orchestrator",
   "version": "1.0.0",
   "description": "Orchestration for basic OAuth2 server side processing.",
   "main": "dist/index.js",

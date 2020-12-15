@@ -1,4 +1,4 @@
-# basic-oauth-orchestration
+# oauth-orchestrator
 
 Basic implementation of OAuth 2.0
 [RFC 6749](https://tools.ietf.org/html/rfc6749)
@@ -10,14 +10,10 @@ of the terminology used in the OAuth 2.0 Specification - there are
 gazillions of available tutorials, blogs, and articles about it
 at your fingertips on the web.
 
-For brevity, the main functional component of this library will
-be called **Orchestrator** in this documentation, after its
-JavaScript class name :-).
-
 ## 1. Installation
 
 ```bash
-npm install basic-oauth-orchestration
+npm install @craigmcc/oauth-orchestrator
 ```
 
 TODO:  This will not work, of course, until I publish
@@ -85,7 +81,7 @@ generally integrate it.
 DEVELOPER NOTE:  The various data types and handler calling sequences
 described below are documented in the `types.d.ts` file included in the
 library (after installing, it will be at
-*node_modules/@craigmcc/basic-oauth-orchestration/types.d.ts*.  For
+*node_modules/@craigmcc/oauth-orchestrator/types.d.ts*.  For
 Typescript-based applications, these types are all conveniently
 exported so that you have can import and use them.  For
 non-Typescript-based applications, the type definitions are liberally
@@ -179,9 +175,9 @@ We will get to how your Resource Server can leverage the `authorize()`
 capability to check for access on each request later, after we
 set up the Authorization Server integration.
 
-### 4.1 Create Required `OrchestrationHandlers` Object and Handler Implementations
+### 4.1 Create Required `OrchestratorHandlers` Object and Handler Implementations
 
-The definition of an `OrchestrationHandler` is pretty straightforward.
+The definition of an `OrchestratorHandler` is pretty straightforward.
 It is merely a list that maps implementation-specific handlers to
 names that the Orchestrator knows, so that it can call out to your
 methods as needed.  The Typescript-y version of this object is:
