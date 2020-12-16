@@ -1,14 +1,22 @@
 # oauth-orchestrator
 
 Basic implementation of OAuth 2.0
-[RFC 6749](https://tools.ietf.org/html/rfc6749)
-back end functionality, suitable for integration with a Node-based web
-application.
+[RFC 6749](https://tools.ietf.org/html/rfc6749), and the corresponding
+usage of Bearer tokens for authorizing incoming requests
+[RFC 6750](https://tools.ietf.org/html/rfc6750).
+It provides back end functionality, suitable for integration with a
+Node-based web application.
 
-This document assumes you have at least a casual knowledge
-of the terminology used in the OAuth 2.0 Specification - there are
-gazillions of available tutorials, blogs, and articles about it
-at your fingertips on the web.
+It supports the **Resource Owner Password Credentials Grant** (Section 4.3)
+and the **Refreshing an Access Token** (Section 6) flows.
+
+The primary focus is supporting use cases where (in RFC 6749 terminology)
+the **Authorization Server** (which validates passwords and gives out
+access and refresh tokens) and the **Resource Server** (which authorizes
+incoming requests and performs your application logic) are in the same
+web application.  However, it would be straightforward to split these
+responsibilities into different servers with support for some
+back-channel communication between the two.
 
 ## 1. Installation
 
@@ -18,77 +26,91 @@ npm install @craigmcc/oauth-orchestrator
 
 TODO:  This will not work, of course, until I publish
 the library to NPM.  That should happen soon.  In the mean
-time, it's simple to download the sources from GitHub and
+time, it's simple to
+[download the sources](https://github.com/craigmcc/oauth-orchestrator) from GitHub and
 build it for yourself.
+
+If you do this, [npm link](https://docs.npmjs.com/cli/v6/commands/npm-link)
+makes it easy to develop an application that depends on Orchestrator, without
+having to formally declare it as a dependency.
 
 ## 2. Features
 
-- Supports `password` and `refresh` token grants for Authorization Server
-  and/or Resource Server implementations.
-  - Other grant types could be added, but these two met my initial needs.
-- Supports an `authorize()` method that is available to Resource Server
-  applications to verify the validity of an access token, as well as whether
-  that access token is still valid, and whether it supports the scope
-  required to perform a specific operation.  Calls to this method
-  can be made from the HTTP request handler for your incoming requests.
-- Library is **agnostic** about application-specific concerns, such as where
-  and how user and token information is stored, or what HTTP framework
-  might be in use.
+- Supports *password* and *refresh* token grants for Authorization Server
+  implementations.
+- Supports an `authorize()` method for the Resource Server
+  to verify the validity of an access token (is it a valid
+  token, has it expired, does it possess the scope required for the
+  application function being requested) on each request to a protected
+  API endpoint.
+- Orchestrator is **agnostic** about application-specific concerns, such as:
+  - Where and how user information is stored.
+  - Where and how access token and refresh token information is stored.
+  - What HTTP framework might be in use.
 - Instead, an application integrating this library must provide a small
-  set (6) of handler functions to provide concrete implementations of
+  set (6) of handler functions to provide concrete integrations of
   necessary features.
-- Although optimized for use cases where the Authorization Server (AS)
-  and Resource Server (RS) are in the same application, it would be
-  feasible to separate them by
-  - Implementing the Orchestrator and its handlers in the AS.
-  - Providing a means for RS request processing to remotely access the
-    `authorize()` endpoint of the AS.
+
+Authenticating client applications (via client_id and
+client_secret properties) is not currently supported.   This is
+a likely future addition, but to maintain backwards compatibility
+it will likely remain optional.
 
 ## 3.  Technologies
 
-When I first set out to incorporate OAuth into one of my existing applications, I spent
-a fair amount of time examining the plethora of libraries supporting OAuth in various
-manners.  I even did test implementations of several, but always came across either
-showstopping limitations in how the grant types I needed were implemented, libraries
-that were not recently updated, or (important to me) libraries that originated in
-the very ancient days of Javascript (no classes, no async/await, no Typescript).  That
-did not appeal to me, as my intial target application was a green field creation
-started in mid-2020, so I was not constrained by having to support older stuff.
+In contrast to many of the OAuth packages currently available for
+Node-based web applications, Orchestrator strives to be minimalist
+in its requirements.  Indeed, if you peruse the `package.json` file,
+defining it, you will note that there are **zero** runtime dependencies.
+It also presumes that a reasonably current set of technologies are available.
 
 As such, the following technologies form the basis of this library:
-- Presumes a `Node JS` environment that supports the latest stuff (I use 14.15
-  or later in my own applications).
-- Implemented with `Typescript` that is transpiled to target **es6**.
-- (Of course, the library can be used in a pure JavaScript environment,
-  but if you came from a Java background like I did, object oriented
-  development - especially type checking - is a HUGE quality improver.)
-- (Personal Preference) - the tests for this library use Mocha and Chai
-  (very fast, clean output, and I like "expect" type syntax).
+- [NodeJS](https://nodejs.org/en/).  I use version 14.15 or later,
+  although it may work with previous versions.
+- [Typescript](https://www.typescriptlang.org).  Coming out of a
+  primarily Java-based software development career, the object
+  orientation and error catching was very comfortable.  I use
+  version 4.1 or later, transpiling to target **es6** by default.
+  The library should (of course) be usable in pure Javascript
+  environments as well.
+- [Mocha](https://mochajs.org/)  and [Chai](https://www.chaijs.com/)
+  for testing.  This was mostly personal preference, but I like
+  the robust support for async/await based functions out of the
+  box, as well as the cleaner output formats than some other
+  testing libraries.
 
-What, no web framework like [Express](http://expressjs.com/), you ask?  Nope.
-
-Indeed, if you peruse the included `package.json` file, you will see that
-there are **no** runtime dependencies -- only compile time ones.  I wanted
-to minimize the barriers to developers who want to integrate with any
-server technologies that they choose (or that their company might impose).
-
-Fear not, however, I use it in real life in Express-based applications.
-The documentation below will include some snippets describing how I
-generally integrate it.
+No web framework is defined as a dependency - it is up to the
+handler functions provided by your integration to adapt to
+whatever request/response support your web framework offers.
+I use [Express](https://expressjs.com) for my own personal
+projects, where the middleware support makes integration for
+authorization calls very easy, but it should be possible to
+use other frameworks as well.
 
 ## 4.  Integration Steps:
 
-DEVELOPER NOTE:  The various data types and handler calling sequences
-described below are documented in the `types.d.ts` file included in the
-library (after installing, it will be at
-*node_modules/@craigmcc/oauth-orchestrator/types.d.ts*.  For
-Typescript-based applications, these types are all conveniently
-exported so that you have can import and use them.  For
-non-Typescript-based applications, the type definitions are liberally
-documented and suitable for helping you get all the data objects
-and function calling sequences built correctly.
+### 4.1 Developer Notes
 
-### 4.1 Create Persistent Storage Implementations
+For Typescript-based applications, all the type definitions
+mentioned below are exported by the library, so you can say
+things like this in your application:
+
+```typescript
+import {
+  AccessToken,
+  RefreshToken,
+  User } 
+from "@craigmcc/oauth-orchestrator";
+```
+
+For non-Typescript-based applications, you cannot reference the
+type definitions in your code, but they are available to read in
+a liberally commented text file, which (after installation) will be at
+*node_modules/@craigmcc/oauth-orchestrator/types.d.ts* relative
+to your project directory.  This will help you get the parameter types
+and return values right on your handler function implementations.
+
+### 4.2 Create Persistent Storage Implementations
 
 Your application is responsible for providing persistent storage
 (typically in a database, but that is up to you) for the following
@@ -110,6 +132,9 @@ The *token* field of an access token is an opaque string that is
 send on each request to the Resource Server.  They expire at
 a certain time, and can be refreshed or revoked (which is
 effectively a logout operation).
+
+To minimize security risks, you should
+generate reasonably long random character strings as token values.
 
 **RefreshToken** - Refresh tokens that are created
   or retrieved by the Orchestrator.
@@ -175,7 +200,7 @@ We will get to how your Resource Server can leverage the `authorize()`
 capability to check for access on each request later, after we
 set up the Authorization Server integration.
 
-### 4.1 Create Required `OrchestratorHandlers` Object and Handler Implementations
+### 4.3 Create Required `OrchestratorHandlers` Object and Handler Implementations
 
 The definition of an `OrchestratorHandler` is pretty straightforward.
 It is merely a list that maps implementation-specific handlers to
@@ -193,29 +218,27 @@ export interface OrchestratorHandlers {
 }
 ```
 
-IMPLEMENTATION NOTE:  Because each of these handlers returns a (native)
-JavaScript **Promise**, they are intended to be implemented as **async**
-functions.  You will definitely need to brush up on your knowledge of
-how asynchronous things work in JavaScript if you are not familiar
-with them.  Fortunately, pretty much every web framework, database
-interface, or HTTP client library you might use to implement things
-are already very comfortable with promises, so they will fit in
-pretty easily.
+It is likely easiest to create this object in a separate file
+(MyOrchestratorHandlers.ts or whatever), which also includes the
+non-exported implementations of each handler function.  For more
+complex scenarios, you might prefer to separate the handlers into
+their own individual files.
 
-PERSONAL ASIDE:  My favorite approach is to declare these functions
-as "async", and then use "await" on calls to other services that return
-promises. Plus, I like to use try/catch blocks to deal with any errors
-that those services might throw.  I find this MUCH easier to
-understand than the ".then() and .catch()" paradigm you will
-also see used all over the place in JavaScript libraries and
-applications.  That approach also works, but it has a whole ton
-of subtleties that makes it much harder to learn.
+Note that all the handler functions return Promises, and are
+therefore expected to be *async* functions.  Fortunately, pretty
+much any libraries you need for database access, password hashing,
+and your web framework will be very comfortable with this.
+
+As a personal preference, I like using "await" over then/catch chains
+(with try/catch blocks to deal with errors as needed), but that style
+choice us up to you.  There is no support for the older Javascript
+style of appending a callback function to the parameters.
 
 The implementation requirements for each handler are described in the
-following sections (each preceeded with its Typescript signature, with
+following sections (along with the Typescript signature, with
 definitions of the parameters and return type).
 
-#### 4.1.1 Authenticate User
+#### 4.3.1 Authenticate User
 
 ```typescript
 export type AuthenticateUser
@@ -225,26 +248,42 @@ export type AuthenticateUser
 
 For the Password Grant flow in OAuth, it is presumed that your
 application will have some sort of login screen that asks for
-username and password.  They are then submitted to the Orchestrator
+username and password.  These are then submitted to the Orchestrator
 in order to ask the AuthenticateUser handler to actually authenticate
 these credentials.
 
 The most common approach to this is to have your application
-provide an API endpoint (often `/oauth/authenticate` but this
-is up to you) that triggers a call to the Authenticate User
-handler, via a Password Grant request to the Orchestrator's
-*token()* method.
+provide an API endpoint (often `/oauth/token` but this
+is up to you) with incoming data that looks like a
+`PasswordTokenRequest` that triggers a call to the
+`AuthenticateUser` handler.  Per the OAuth specification,
+this request should have property names matching those in
+`PasswordTokenRequest`, with content type
+**application/x-www-form-urlencoded** (i.e. the standard
+format for form submission).
 
 If authentication is successful, your handler should return a
 **User** object, as described above. Orchestrator will then
 use that object to create an access token and (optional, but
-turned on by default) refresh token.
+turned on by default) refresh token, which will be returned
+as a `TokenResponse` object (in JSON format).
 
-If authentication fails, or any other problem occurs, simply
-throw an appropriate error.  This will get passed back to your
-logic that called the authen
+If authentication fails (invalid username or password) an
+`InvalidGrantError` will be returned to you, with the underlying
+error included in the *inner* property.  To avoid showing
+potentially sensitive information to client callers, this
+property should be suppressed in any response sent back to
+the calling application.
 
-#### 4.1.2 Create Access Token
+IMPLEMENTATION NOTE:  It is **strongly** recommended that you
+do not store plaintext passwords in a database!  Instead,
+encrypt them with a one-way hash function (I like bcrypt but
+the choice is yours), and implement your authentication handler
+to verify the submitted password against the hashed version
+retrieved from your database.  Just be sure that you use the
+same algorithm for hashing and verifying.
+
+#### 4.3.2 Create Access Token
 
 ```typescript
 export type CreateAccessToken
@@ -253,9 +292,9 @@ export type CreateAccessToken
 ```
 
 This handler will be called whenever the Orchestrator needs
-to create a new access token.  This will happen in at least
+to create a new access token.  This will happen in
 the following scenarios:
-- A newly logging in user is sucessfully authenticated,
+- A newly logging in user is successfully authenticated,
   and needs to receive an access token for use on all
   the subsequent API requests for that user.
 - An existing logged in user has a valid access token, but
@@ -277,7 +316,7 @@ token to that required by the requested operation).
 If your application has problems storing or returning this
 token, simply throw an appropriate Error.
 
-#### 4.1.3 Create Refresh Token
+#### 4.3.3 Create Refresh Token
 
 ```typescript
 export type CreateRefreshToken
@@ -285,8 +324,8 @@ export type CreateRefreshToken
     => Promise<RefreshToken>;
 ```
 
-This handler will be called if the Orchestrator is configured
-to return refresh tokens (it is by default), a refresh token
+This handler will be called if Orchestrator is configured
+to return refresh tokens (it is by default), and a refresh token
 will be created via this call, at the same time that a new
 access token was created.
 
@@ -301,7 +340,7 @@ the `authorize()` Orchestrator method will start failing
 returned to the user), after which they will need to
 reauthenticate to continue using the application.
 
-#### 4.1.4 Retrieve Access Token
+#### 4.3.4 Retrieve Access Token
 
 ```typescript
 export type RetrieveAccessToken
@@ -323,10 +362,10 @@ times - once per API call to a protected resource.  If this
 creates performance issues, consider using some sort of
 in-memory cache to minimize the number of database calls
 needed.  Just be sure that you purge the cache entries
-when the Revoke Access Token handler is called, to avoid
+when the `RevokeAccessToken` handler is called, to avoid
 stale tokens from being used for additional requests.
 
-#### 4.1.5 Retrieve Refresh Token
+#### 4.3.5 Retrieve Refresh Token
 
 ```typescript
 export type RetrieveRefreshToken
@@ -340,7 +379,7 @@ whenever needed for the Refresh Token flow.
 As usual, if your server environment has problems, or if
 the requested refresh token does not exist, throw an Error.
 
-#### 4.1.6 Revoke Access Token (and any related Refresh Tokens)
+#### 4.3.6 Revoke Access Token (and any related Refresh Tokens)
 
 ```typescript
 export type RevokeAccessToken
@@ -348,9 +387,21 @@ export type RevokeAccessToken
     => Promise<void>;
 ```
 
-TODO
+Conventionally, your application will offer an endpoint (I like
+to use `DELETE /oauth/token`, but this it is up to you) that
+effectively logs the user off by removing or deactivating the
+specified access token, along with any associated access tokens.
+The processing logic for this endpoint will call this handler.
+Afterwards, the access token that was used will no longer be
+valid, and the user will need to log back in again via the
+Password Grant flow.
 
-### 4.2 Create Optional `OrchestratorOptions` To Override Defaults
+Whether you offer such an endpoint or not, you will
+want to build some sort of scheduled job (daily or whatever) to
+prune expired access tokens (and their corresponding refresh
+tokens, if any).
+
+### 4.4 Create Optional `OrchestratorOptions` To Override Defaults
 
 If you want to modify some or all of the configuration options
 for the Orchestrator, you can create an options object that is
@@ -367,58 +418,29 @@ export interface OrchestratorOptions {
 }
 ```
 
-### 4.3 Instantiate and Configure an `Orchestrator` Singleton
+### 4.5 Instantiate and Configure an `Orchestrator` Singleton
+
+In the top-level Javascript object that controls your application,
+include logic similar to this:
+
+```typescript
+import { Orchestrator } from "@craigmcc/oauth-orchestrator";
+import { MyOrchestratorHandlers } from "...wherever...";
+export const OAuthOrchestrator: Orchestrator
+  = new Orchestrator(MyOrchestratorHandlers);
+```
+
+This will make a configured `OAuthOrchestrator` instance available
+to any other part of your application that needs access to it.
+
+If you want to override some of the configuration properties, pass
+a suitable `OrchestratorOptions` object as the second parameter
+to the constructor.
+
+### 4.6 Integrate Authorization Calls In Your Resource Server
 
 TODO
 
-### 4.4 Integrate Authorization Calls In Your Resource Server
+### 4.7 Client Application Responsibilities
 
 TODO
-
-## 5 Example Implementation Notes
-
-### 5.1 Introduction
-
-As described above, I am using this library for my personal
-projects.  The following notes describe how I chose to use it
-in an Express-based web application that provides REST API
-calls, many of which need to be accessed only by logged in
-users.  In addition, "admin" users can perform more operations
-(for example creating/updating/deleting) than "regular" users
-can do, so I use the "scope" capabilities to distinguish
-between them.
-
-This is by no means the only approach that can be taken,
-but having something concrete to examine should help as
-you plan how to integrate OAuth capabilities into your
-own application.
-
-NOTE:  In my particular case, the Authorization Server
-and Resource Server components are part of the same web
-application.  Therefore, they can share a single instance
-of Orchestrator, with the `authorize()` calls being done
-by the Resource Server's HTTP request handlers, and the
-same database used for the rest of the application.  The two
-main functional responsibilities could be separated,
-if you set up back-channel communications between the two.
-
-### 5.2 The Library Application
-
-TODO - general description of what the application does.
-
-### 5.3 Scope Definitions
-
-TODO - how I named the various scopes.
-
-### 5.4 Authorization Server Integration
-
-TODO - how I implemented the handlers described above,
-and integrated the Orchestrator into the root of the
-application.
-
-### 5.5 Per Request Authorization
-
-TODO - how I implemented calls to the `authorize()` method
-into my Express user, via Express's "middleware" plugin
-architecture.
-
