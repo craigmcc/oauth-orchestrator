@@ -439,8 +439,239 @@ to the constructor.
 
 ### 4.6 Integrate Authorization Calls In Your Resource Server
 
-TODO
+#### 4.6.1 Requirements
+
+For each request to an API that is protected by access restrictions,
+the goal is to implement a call to the `authorize()` method of the
+Orchestrator.  Two pieces of information are required:
+- The access token value (extracted from the *Authorization*
+  header) for this request.
+- The scope that is required to complete this request.  Knowing this
+  will require an understanding of the scope architecture, to
+  understand what operations are allowed by what scopes.
+
+The details of how this can be implemented will vary depending on
+the web framework you are using.  Most such frameworks allow the
+configuration of an interceptor of some sort, before the normal
+processing of the request, that extracts the access token, and
+knows the scope requirements for that request (based on an
+understanding of the scope architecture).
+
+#### 4.6.2 Example Express Middleware
+
+In a framework like Express, such a technique can be implemented
+by creating "middleware" functions that are inserted in the
+processing flow for a particular route (or all routes to a
+particular router, or the entire application).  Using Express
+Typescript declarations, a middleware function that requires
+the "admin" scope might be implemented like this (with supporting
+utility functions shared across middleware implementations):
+
+```typescript
+export const requireAdmin: RequestHandler =
+    async (req: Request, res: Response, next: NextFunction) => {
+        const token = extractToken(req);
+        if (!token) {
+            throw new Forbidden("No access token presented", "requireToken");
+        }
+        const required = "admin";
+        await authorizeToken(token, required);
+        res.locals.token = token;
+        next();
+}
+
+const extractToken = (req: Request) : string | null => {
+  const header: string | undefined = req.header("Authorization");
+  if (!header) {
+    return null;
+  }
+  const fields: string[] = header.split(" ");
+  if (fields.length != 2) {
+    return null;
+  }
+  if (fields[0] !== "Bearer") {
+    return null;
+  }
+  return fields[1];
+}
+
+const authorizeToken = async (token: string, required: string): Promise<void> => {
+  try {
+    await OAuthOrchestrator.authorize(token, required);
+  } catch (error) {
+    throw error;
+  }
+
+}
+```
+
+Note that the "required" scope being specified is a **minimum**
+requirement.  It is perfectly fine if the access token has been
+granted wider scope than what is required, but being granted
+less than the required scope will trigger a 403 response.
+
+In more complex environments, the middleware might need to have
+access to which information is being requested, which will often
+be based on the value for a request parameter.  In Express, the
+middleware has access to these parameters via `req.params.{name}`,
+which can then be used to influence the scope that is being
+defined as required for this operation.
+
+#### 4.6.3 Express Implementing Per-Route Restrictions
+
+Imagine we have a library application, where any user is allowed
+to retrieve information about a particular library, but only an
+admin is allowed to change it.  The route for the HTTP PUT
+that supports this function might be configured like this:
+
+```typescript
+LibraryRouter.put("/:libraryId",
+    requireAdmin,
+    async (req: Request, res: Response) => {
+        res.send(await LibraryServices.update(
+            parseInt(req.params.libraryId, 10),
+            req.body
+        ));
+    });
+```
+
+where `requireAdmin` is the middleware function we defined above.
+Because this is placed ahead of the actual update processing,
+it will be called first -- and any attempt by a non-admin to
+perform this operation will have received a 403 response, without
+the actual business logic of doing the update from having to care
+about the permissions check.
 
 ### 4.7 Client Application Responsibilities
 
-TODO
+#### 4.7.1 Design Scope Architecture
+
+One of the most interesting application design tasks is to define
+the architecture of what *scope* settings should be defined, and
+what operations they should allow.
+
+As a quick review, a scope (in OAuth terms) is a space-delimited
+set of one or more "permissions" to do things (other approaches are
+possible, but this is likely to be very common).  In an
+OAuth environment, an access token is associated with such a scope,
+and is typically either:
+- A scope that is associated with the user, based on their
+  role in this application.  This will be used if the request to
+  create an access token does not include a specified scope.
+- A scope that is requested when requesting an access token.
+
+A properly implemented **Resource Server** will deny any request to
+ask for more permissions than the user is allowed.  For example,
+an "admin" scope might only be assigned to certain individuals, and
+then be used to limit functionality that a user might try to use.
+
+Similarly, since a request for an access token might include a
+request for a particular scope that is not permitted for that user.
+In this case, the **Authentication Server** should disallow that request.
+
+Scopes can range from simple (for instance, an "admin" user versus
+a "regular" user) to more complex.  Consider an online SaaS app
+that supports multiple customers, each of which might have their own
+hierarchies of admin and regular users -- but **none** of them should
+be able to access any of the information for another customer.  This
+requirement can be implemented in any number of ways.  Using scope
+is an option, but will sometimes require a Resource Server to extract
+request parameters from the URL (for example, a customer id), or
+(worse from a performance viewpoint) from data retrieved from the
+database.
+
+### 4.7.2 Implement Login Capabilities
+
+How does a user request an access token in the first place?  If the
+application uses the Password Grant flow, this will typically be
+handled by:
+- Providing a login view that accepts username and password.
+- Formulate a `PasswordTokenRequest` request, and send it to the
+  "token" endpoint of the Authorization Server (often `/oauth/token`);
+- Process the returned result, which will typically be:
+  - HTTP Status 200, with a `TokenResponse` response body.  Record
+    the `access_token` and (optional) refresh token, as well as the
+    `scope` assigned to this access token.  You might also choose
+    to record the `expires_in` so that you can warn the user about
+    impending expiration, and/or proactively execute the Refresh
+    Token flow to get a new access token without user intervention.
+  - HTTP Status 401.  Normally this will mean a problem in validating
+    the username and password credentials.  Ask the user to enter
+    them again.
+  - Other HTTP Status.  Probably a server side issue.
+  
+In any of the non-200 cases, the response body might include a JSON
+structure such as an `InvalidGrantError`, which will include a
+`message` property with an explanatory message.  However, any such
+response means that an access token was not received, so the login
+was not successful.
+
+### 4.7.3 (Optional) Implement Logout Capabilities
+
+A client application may choose to offer a "logout" or "sign out"
+option.  Implementing this will typically include:
+- Format a request to the appropriate endpoint that is
+  provided by the server for this purpose.
+- Make sure this request is authorized with the same access
+  token that the user is sending on all normal requests
+  (after all, we don't want the server invalidating access
+  tokens that might actually belong to someone else).
+- Dealing with responses as usual.
+
+If logout has occurred, the client application should throw away
+any access token information related to this user, so that any
+subsequent request will trigger a 401 or 403 response that should
+then trigger having to login again.
+
+### 4.7.4 Include Access Token On Every Protected API Request
+
+When sending such a request, include an HTTP *Authorization*
+header, including the users's access token (if any), like this:
+
+```http request
+Authorization: Bearer {user-access-token}
+```
+
+Note that the OAuth specification supports a couple of alternative
+ways to include the Bearer token (as a query parameter, or as a
+field in a form submit), but these are problematic from a security
+(query parameters are often logged by the server), or accurate data
+modelling (polluting the request body with something that is not
+related to the actual data being transmitted) perspective.  Therefore,
+the oauth-orchestrator implementation **only** accepts Bearer tokens.
+
+### 4.7.5 Deal With Authentication or Authorization Responses
+
+In addition to normal application responses, two particular HTTP
+status codes indicate issues with OAuth authentication and
+authorization issues:
+- HTTP Status 401:  Most likely scenario is that the previously
+  usable access token has expired.  Send the user back to the
+  login mechanism, so they can request a new token.  For extra
+  credit, return them to where they were, perhaps resubmitting
+  the request that failed.
+- HTTP Status 403:  Most likely scenario is that the user submitted
+  an API request that is not allowed by the scope granted to the
+  access token they are using.  This type of request will not be
+  successful unless the user logs in with credentials that allow
+  the required scope.
+
+In an ideal scenario, the client application design will seek to
+minimize the chances for a 403 response happening, by not even
+offering (through the application's UI) a way to invoke the API
+request that is going to fail.  For example, if a user is not
+allowed to request or modify data of a particular type, do not
+even offer the UI that makes such a request possible.
+
+Of course, the Authorization Server is going to enforce scope
+restrictions under all circumstances, because this application
+might not be the only one utilizing the server.  Avoiding
+the possibility of triggering such issues in the first place
+will lead to a better user experience.
+
+How do we do this?  As part of the information returned when an
+access token is received, the scope assigned to that access
+token is also returned.  If the client application understands
+the scope architecture, it can make decisions about what
+functions can be offered in the UI, avoiding those that will
+trigger 403 responses.
