@@ -24,16 +24,6 @@ back-channel communication between the two.
 npm install @craigmcc/oauth-orchestrator
 ```
 
-TODO:  This will not work, of course, until I publish
-the library to NPM.  That should happen soon.  In the mean
-time, it's simple to
-[download the sources](https://github.com/craigmcc/oauth-orchestrator) from GitHub and
-build it for yourself.
-
-If you do this, [npm link](https://docs.npmjs.com/cli/v6/commands/npm-link)
-makes it easy to develop an application that depends on Orchestrator, without
-having to formally declare it as a dependency.
-
 ## 2. Features
 
 - Supports *password* and *refresh* token grants for Authorization Server
@@ -390,7 +380,7 @@ export type RevokeAccessToken
 Conventionally, your application will offer an endpoint (I like
 to use `DELETE /oauth/token`, but this it is up to you) that
 effectively logs the user off by removing or deactivating the
-specified access token, along with any associated access tokens.
+specified access token, along with any associated refresh tokens.
 The processing logic for this endpoint will call this handler.
 Afterwards, the access token that was used will no longer be
 valid, and the user will need to log back in again via the
