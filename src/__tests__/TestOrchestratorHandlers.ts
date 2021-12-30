@@ -110,7 +110,6 @@ const revokeAccessToken: RevokeAccessToken
                 refreshTokenMap.delete(refreshToken.token);
             }
         });
-        return;
     } else {
         throw new Error(`revokeAccessToken: Missing token ${token}`);
     }
@@ -193,7 +192,7 @@ export const resetAll = () : void => {
     });
 
     // Set up an access token for each user with their default scope values
-    const accessTokenExpires: Date = new Date(); // TODO - add offset
+    const accessTokenExpires: Date = new Date();
     credentialMap.forEach(credential => {
         createAccessToken(
             accessTokenExpires,
@@ -203,7 +202,7 @@ export const resetAll = () : void => {
     });
 
     // Set up a refresh token for each access token
-    const refreshTokenExpires: Date = new Date(); // TODO - add offset
+    const refreshTokenExpires: Date = new Date();
     accessTokenMap.forEach(accessToken => {
         createRefreshToken(
             accessToken.token,
