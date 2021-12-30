@@ -418,7 +418,7 @@ export class Orchestrator {
             try {
                 await this.handlers.revokeAccessToken(oldAccessToken.token);
             } catch (error) {
-                // TODO - Should we throw, or just note it and return the new stuff?
+                // NOTE - Should we throw, or just note it and return the new stuff?
                 throw new InvalidTokenError(
                     error,
                     "Orchestrator.refresh.revokeAccessToken()"

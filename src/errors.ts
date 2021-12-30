@@ -44,7 +44,7 @@ export class InvalidGrantError extends OAuthError {
         super(source, context);
     }
     error = "invalid_grant";
-    status = 401; // TODO - some implementations say 400?
+    status = 401; // NOTE - some implementations say 400?
 }
 
 /**
