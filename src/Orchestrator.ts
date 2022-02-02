@@ -101,7 +101,7 @@ export class Orchestrator {
                 accessToken = await this.handlers.retrieveAccessToken(token);
             } catch (error) {
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.authenticate.retrieveAccessToken()"
                 );
             }
@@ -125,7 +125,7 @@ export class Orchestrator {
                 throw error;
             } else {
                 throw new ServerError(
-                    error,
+                    error as Error,
                     "Orchestrator.authorize()"
                 )
             }
@@ -270,7 +270,7 @@ export class Orchestrator {
                 user = await this.handlers.authenticateUser
                     (request.username, request.password);
             } catch (error) {
-                throw new InvalidGrantError(error,
+                throw new InvalidGrantError(error as Error,
                     "Orchestrator.password.authenticateUser()"
                 );
             }
@@ -296,7 +296,7 @@ export class Orchestrator {
                    (expires, grantedScope, user.userId);
             } catch (error) {
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.password.createAccessToken()"
                 );
             }
@@ -309,7 +309,7 @@ export class Orchestrator {
                         (accessToken.token, expires, user.userId);
                 } catch (error) {
                     throw new InvalidTokenError(
-                        error,
+                        error as Error,
                         "Orchestrator.password.createRefreshToken()"
                     );
                 }
@@ -330,7 +330,7 @@ export class Orchestrator {
             if (error instanceof OAuthError) {
                 throw error;
             } else {
-                throw new ServerError(error, "Orchestrator.password()");
+                throw new ServerError(error as Error, "Orchestrator.password()");
             }
         }
 
@@ -359,7 +359,7 @@ export class Orchestrator {
                     (request.refresh_token);
             } catch (error) {
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.refresh.retrieveRefreshToken()"
                 );
             }
@@ -378,7 +378,7 @@ export class Orchestrator {
                     (oldRefreshToken.accessToken);
             } catch (error) {
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.refresh.retrieveAccessToken()"
                 )
             }
@@ -394,7 +394,7 @@ export class Orchestrator {
                         (expires, oldAccessToken.scope, oldAccessToken.userId);
             } catch (error) {
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.refresh.createAccessToken()"
                 );
             }
@@ -408,7 +408,7 @@ export class Orchestrator {
                         (newAccessToken.token, expires, oldAccessToken.userId);
                 } catch (error) {
                     throw new InvalidTokenError(
-                        error,
+                        error as Error,
                         "Orchestrator.refresh.createRefreshToken()"
                     );
                 }
@@ -420,7 +420,7 @@ export class Orchestrator {
             } catch (error) {
                 // NOTE - Should we throw, or just note it and return the new stuff?
                 throw new InvalidTokenError(
-                    error,
+                    error as Error,
                     "Orchestrator.refresh.revokeAccessToken()"
                 );
             }
@@ -440,7 +440,7 @@ export class Orchestrator {
             if (error instanceof OAuthError) {
                 throw error;
             } else {
-                throw new ServerError(error, "Orchestrator.refresh()");
+                throw new ServerError(error as Error, "Orchestrator.refresh()");
             }
         }
 

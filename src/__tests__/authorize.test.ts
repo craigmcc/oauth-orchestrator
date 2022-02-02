@@ -43,7 +43,7 @@ describe("Orchestrator.authorize()", () => {
                 expect.fail(`Should have rejected expired token ${TOKEN}`);
             } catch (error) {
                 // Expected result
-                expect(error.message).equals(`token: Expired access token`);
+                expect((error as Error).message).equals(`token: Expired access token`);
             }
         } else {
             expect.fail(`Should have retrieved access token ${TOKEN}`);
@@ -57,7 +57,7 @@ describe("Orchestrator.authorize()", () => {
             expect.fail(`Should have rejected invalid token ${TOKEN}`);
         } catch (error) {
             // Expected result
-            expect(error.message).equals(`token: Invalid access token`);
+            expect((error as Error).message).equals(`token: Invalid access token`);
         }
     })
 
@@ -71,7 +71,7 @@ describe("Orchestrator.authorize()", () => {
                 expect.fail(`Should have rejected scope error on token ${TOKEN}`);
             } catch (error) {
                 // Expected result
-                expect(error.message).equals(`scope: Required scope not authorized for this access token`);
+                expect((error as Error).message).equals(`scope: Required scope not authorized for this access token`);
             }
         } else {
             expect.fail(`Should have retrieved access token ${TOKEN}`);
@@ -85,7 +85,7 @@ describe("Orchestrator.authorize()", () => {
             expect.fail(`Test should have thrown error`);
         } catch (error) {
             // Expected result
-            expect(error.message).equals(`retrieveAccessToken: oops`);
+            expect((error as Error).message).equals(`retrieveAccessToken: oops`);
         }
     })
 

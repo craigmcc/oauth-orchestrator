@@ -51,7 +51,7 @@ describe("Orchestrator.password()", () => {
             expect.fail("Should have thrown invalid credentials error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals("credentials: Invalid credentials");
+            expect((error as Error).message).equals("credentials: Invalid credentials");
         }
     })
 
@@ -66,7 +66,7 @@ describe("Orchestrator.password()", () => {
             expect.fail("Should have thrown invalid credentials error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals("credentials: Invalid credentials");
+            expect((error as Error).message).equals("credentials: Invalid credentials");
         }
     })
 
@@ -82,7 +82,7 @@ describe("Orchestrator.password()", () => {
             expect.fail("Should have thrown invalid scope error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals(`scope: Scope '${request.scope}' not allowed`);
+            expect((error as Error).message).equals(`scope: Scope '${request.scope}' not allowed`);
         }
     })
 

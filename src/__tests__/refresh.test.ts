@@ -62,7 +62,7 @@ describe("Orchestrator.refresh()", () => {
             expect.fail("Should have thrown expired refresh token error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals("token: Expired refresh token");
+            expect((error as Error).message).equals("token: Expired refresh token");
         }
     })
 
@@ -77,7 +77,7 @@ describe("Orchestrator.refresh()", () => {
             expect.fail("Should have thrown invalid refresh token error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals("token: Invalid refresh token");
+            expect((error as Error).message).equals("token: Invalid refresh token");
         }
     })
 
@@ -101,7 +101,7 @@ describe("Orchestrator.refresh()", () => {
             expect.fail("Should have thrown invalid access token error");
         } catch (error) {
             // Expected result
-            expect(error.message).equals("token: Invalid access token");
+            expect((error as Error).message).equals("token: Invalid access token");
         }
 
     })
