@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch --preserveWatchOutput",
+    "publish": "npm publish --access public .",
     "test": "mocha  src/**/*.test.ts",
     "test:watch": "mocha --watch src/**/*.test.ts",
     "tsc": "tsc"
