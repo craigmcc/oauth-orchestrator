@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/craigmcc/basic-oauth-orchestration#readme",
   "devDependencies": {
-    "@types/chai": "^4.3.0",
+    "@types/chai": "^4.3.6",
     "@types/mocha": "^10.0.0",
     "@types/node": "^20.5.7",
     "chai": "^4.3.8",
