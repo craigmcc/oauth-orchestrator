@@ -29,7 +29,7 @@
   "homepage": "https://github.com/craigmcc/basic-oauth-orchestration#readme",
   "devDependencies": {
     "@types/chai": "^4.3.9",
-    "@types/mocha": "^10.0.3",
+    "@types/mocha": "^10.0.4",
     "@types/node": "^20.8.8",
     "chai": "^4.3.10",
     "mocha": "^10.1.0",
