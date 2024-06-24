@@ -33,7 +33,7 @@
     "@types/node": "^20.12.5",
     "chai": "^4.3.10",
     "mocha": "^10.4.0",
-    "nodemon": "^3.1.0",
+    "nodemon": "^3.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.4"
   }
