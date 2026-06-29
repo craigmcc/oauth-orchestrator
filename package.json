@@ -30,7 +30,7 @@
   "devDependencies": {
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.14.10",
+    "@types/node": "^26.0.1",
     "chai": "^4.3.10",
     "mocha": "^10.8.2",
     "nodemon": "^3.1.4",
